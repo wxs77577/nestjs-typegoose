@@ -20,7 +20,7 @@ describe('TypegooseModule', () => {
     it('should call global CoreModule forRoot', () => {
       jest.spyOn(CoreModule, 'forRoot').mockImplementation(() => ({
         providers: 'DbConnection'
-      }));
+      } as any));
 
       const module = TypegooseModule.forRoot('mongourl', {db: 'db settings'});
 
@@ -39,7 +39,7 @@ describe('TypegooseModule', () => {
     it('should call global CoreModule forRoot with empty config', () => {
       jest.spyOn(CoreModule, 'forRoot').mockImplementation(() => ({
         providers: 'DbConnection'
-      }));
+      } as any));
 
       TypegooseModule.forRoot('mongourl');
 
@@ -51,7 +51,7 @@ describe('TypegooseModule', () => {
     it('should call global CoreModule forRoot', () => {
       jest.spyOn(CoreModule, 'forRootAsync').mockImplementation(() => ({
         providers: 'DbConnection'
-      }));
+      } as any));
 
       const options = {
         useFactory: () => {
@@ -103,11 +103,11 @@ describe('TypegooseModule', () => {
         });
 
       jest.spyOn(createProviders, 'createTypegooseProviders')
-        .mockReturnValue('createdProviders');
+        .mockReturnValue('createdProviders' as any);
     });
 
-    it('should return module that exports providers for Models', () => {
-      const module = TypegooseModule.forFeature(...models);
+    it('should return module that exports providers for models', () => {
+      const module = TypegooseModule.forFeature(models);
 
       const expectedProviders = 'createdProviders';
 
@@ -119,12 +119,20 @@ describe('TypegooseModule', () => {
         }
       });
 
-      expect(createProviders.createTypegooseProviders).toHaveBeenCalledWith(convertedModels);
+      expect(createProviders.createTypegooseProviders).toHaveBeenCalledWith(undefined, convertedModels);
       expect(module).toEqual({
         module: TypegooseModule,
         providers: expectedProviders,
         exports: expectedProviders
       });
+    });
+
+    it('should return module that createdTypegooseProviders with provided connectionName', () => {
+      const connectionName = 'OtherMongoDB';
+
+      const module = TypegooseModule.forFeature(models, connectionName);
+      
+      expect(createProviders.createTypegooseProviders).toHaveBeenCalledWith(connectionName, convertedModels);
     });
   });
 });

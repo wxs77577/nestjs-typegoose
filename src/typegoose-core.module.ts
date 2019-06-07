@@ -1,29 +1,51 @@
 import * as mongoose from 'mongoose';
-import { ConnectionOptions } from 'mongoose';
-import { DynamicModule, Global, Module, Provider } from '@nestjs/common';
-import { TypegooseOptionsFactory, TypegooseModuleOptions, TypegooseModuleAsyncOptions } from 'typegoose-options.interface';
+import { DynamicModule, Global, Module, Provider, OnModuleDestroy, Inject } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { TypegooseOptionsFactory, TypegooseModuleOptions, TypegooseModuleAsyncOptions, TypegooseConnectionOptions } from 'typegoose-options.interface';
+import { TYPEGOOSE_CONNECTION_NAME, TYPEGOOSE_MODULE_OPTIONS } from './typegoose.constants';
+import { getConnectionToken } from './typegoose.utils';
 
 @Global()
 @Module({})
-export class TypegooseCoreModule {
+export class TypegooseCoreModule implements OnModuleDestroy {
+  constructor(
+    @Inject(TYPEGOOSE_CONNECTION_NAME) private readonly connectionName: string,
+    private readonly moduleRef: ModuleRef
+  ) {}
+
   static forRoot(
     uri: string,
-    options: ConnectionOptions = {},
+    options: TypegooseConnectionOptions = {}
   ): DynamicModule {
+    const connectionName = getConnectionToken(options.connectionName);
+
+    const connectionNameProvider = {
+      provide: TYPEGOOSE_CONNECTION_NAME,
+      useValue: connectionName
+    }
+
     const connectionProvider = {
-      provide: 'DbConnectionToken',
+      provide: connectionName,
       useFactory: () => mongoose.createConnection(uri, options)
     };
+
     return {
       module: TypegooseCoreModule,
-      providers: [connectionProvider],
+      providers: [connectionProvider, connectionNameProvider],
       exports: [connectionProvider]
     };
   }
 
   static forRootAsync(options: TypegooseModuleAsyncOptions): DynamicModule {
+    const connectionName = getConnectionToken(options.connectionName);
+
+    const connectionNameProvider = {
+      provide: TYPEGOOSE_CONNECTION_NAME,
+      useValue: connectionName
+    }
+
     const connectionProvider = {
-      provide: 'DbConnectionToken',
+      provide: connectionName,
       useFactory: (typegooseModuleOptions: TypegooseModuleOptions) => {
         const {
           uri,
@@ -31,7 +53,7 @@ export class TypegooseCoreModule {
         } = typegooseModuleOptions;
         return mongoose.createConnection(uri, typegooseOptions);
       },
-      inject: ['TYPEGOOSE_MODULE_OPTIONS'] // inject output of async config creator
+      inject: [TYPEGOOSE_MODULE_OPTIONS] // inject output of async config creator
     };
     const asyncProviders = this.createAsyncProviders(options);
     return {
@@ -39,7 +61,8 @@ export class TypegooseCoreModule {
       imports: options.imports, // imports from async for root
       providers: [
         ...asyncProviders,
-        connectionProvider
+        connectionProvider,
+        connectionNameProvider
       ],
       exports: [connectionProvider]
     };
@@ -61,16 +84,24 @@ export class TypegooseCoreModule {
   private static createAsyncOptionsProvider(options: TypegooseModuleAsyncOptions): Provider {
     if (options.useFactory) { // If a factory provider
       return {
-        provide: 'TYPEGOOSE_MODULE_OPTIONS',
+        provide: TYPEGOOSE_MODULE_OPTIONS,
         useFactory: options.useFactory,
         inject: options.inject || [],
       };
     } // else MongooseOptionsFactory
     return {
-      provide: 'TYPEGOOSE_MODULE_OPTIONS',
+      provide: TYPEGOOSE_MODULE_OPTIONS,
       useFactory: async (optionsFactory: TypegooseOptionsFactory) =>
         await optionsFactory.createTypegooseOptions(),
       inject: [options.useExisting || options.useClass],
     };
+  }
+
+  async onModuleDestroy() {
+    const connection = this.moduleRef.get<any>(this.connectionName);
+
+    if (connection) {
+      await connection.close();
+    }
   }
 }
