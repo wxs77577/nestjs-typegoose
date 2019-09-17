@@ -1,6 +1,6 @@
 {
   "name": "nestjs-typegoose",
-  "version": "5.2.0",
+  "version": "6.0.0",
   "description": "A nestjs module wrapper for typegoose",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,8 @@
     "mongoose": "^5.5.13",
     "@nestjs/common": "^6.3.1",
     "@nestjs/core": "^6.3.1",
-    "typegoose": "^5.7.1"
+    "typegoose": "^5.7.1",
+    "@hasezoey/typegoose": "^6.0.0-22"
   },
   "dependencies": {
     "reflect-metadata": "^0.1.13",
