@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Module, Provider } from '@nestjs/common';
 import { TypegooseCoreModule } from './typegoose-core.module';
 
 import {
@@ -8,6 +8,8 @@ import {
 } from './typegoose.providers';
 import { TypegooseClass } from './typegoose-class.interface';
 import { TypegooseModuleAsyncOptions, TypegooseConnectionOptions } from './typegoose-options.interface';
+import { getModelToken } from './typegoose.utils';
+import { getModelForClass } from '@hasezoey/typegoose';
 
 @Module({})
 export class TypegooseModule {
@@ -28,9 +30,11 @@ export class TypegooseModule {
     };
   }
 
-  static forFeature(models: (TypegooseClass<any> | TypegooseClassWithOptions)[], connectionName?: string): DynamicModule {
-    const convertedModels = models.map(model => convertToTypegooseClassWithOptions(model));
-    const providers = createTypegooseProviders(connectionName, convertedModels);
+  static forFeature(models: any[]): DynamicModule {
+    const providers = models.map((model): Provider => ({
+      provide: getModelToken(model.name),
+      useFactory: () => getModelForClass(model),
+    }));
     return {
       module: TypegooseModule,
       providers,
